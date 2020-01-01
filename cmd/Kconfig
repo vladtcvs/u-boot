@@ -1495,6 +1495,11 @@ config CMD_PING
 	help
 	  Send ICMP ECHO_REQUEST to network host
 
+config CMD_ETHSEND
+	bool "ethsend"
+	help
+	  Send raw ethernet frames to network host
+
 config CMD_CDP
 	bool "cdp"
 	help

@@ -12,6 +12,8 @@
 #include <asm/arch/clk.h>
 #include <asm/arch/at91sam9g45_matrix.h>
 #include <asm/arch/at91sam9_smc.h>
+#include <asm/arch/at91_pmc.h>
+#include <asm/arch/at91_rstc.h>
 #include <asm/arch/at91_common.h>
 #include <asm/arch/gpio.h>
 #include <asm/arch/clk.h>
@@ -19,8 +21,15 @@
 #include <linux/mtd/rawnand.h>
 #include <atmel_lcdc.h>
 #include <asm/mach-types.h>
+#if defined(CONFIG_RESET_PHY_R) && defined(CONFIG_MACB)
+#include <net.h>
+#endif
+#include <netdev.h>
+
 
 DECLARE_GLOBAL_DATA_PTR;
+
+static struct at91_pmc *pmc = (at91_pmc_t *)ATMEL_BASE_PMC;
 
 /* ------------------------------------------------------------------------- */
 /*
@@ -176,6 +185,45 @@ void lcd_disable(void)
 	at91_set_A_periph(AT91_PIN_PE6, 0);	/* power down */
 }
 
+#ifdef CONFIG_MACB
+
+static void at91sam9m10g45ek_macb_hw_init(void)
+{
+
+	struct at91_port *pioa = (struct at91_port *)ATMEL_BASE_PIOA;
+
+	at91_set_pio_output(AT91_PIO_PORTD, 17, 0);
+	at91_set_pio_value(AT91_PIO_PORTD, 17, 1);
+
+	at91_periph_clk_enable(ATMEL_ID_EMAC);
+
+	/*
+	 * Disable pull-up on:
+	 *      RXDV (PA15) => PHY normal mode (not Test mode)
+	 *      ERX0 (PA12) => PHY ADDR0
+	 *      ERX1 (PA13) => PHY ADDR1 => PHYADDR = 0x0
+	 *
+	 * PHY has internal pull-down
+	 */
+	writel(pin_to_mask(AT91_PIN_PA15) |
+	       pin_to_mask(AT91_PIN_PA12) |
+	       pin_to_mask(AT91_PIN_PA13),
+	       &pioa->pudr);
+
+	at91_phy_reset();
+
+	/* Re-enable pull-up */
+	writel(pin_to_mask(AT91_PIN_PA15) |
+	       pin_to_mask(AT91_PIN_PA12) |
+	       pin_to_mask(AT91_PIN_PA13),
+	       &pioa->puer);
+
+	/* And the pins. */
+	at91_macb_hw_init();
+}
+#endif
+
+
 static void at91sam9m10g45ek_lcd_hw_init(void)
 {
 	at91_set_A_periph(AT91_PIN_PE0, 0);	/* LCDDPWR */
@@ -282,6 +330,16 @@ int board_init(void)
 #ifdef CONFIG_LCD
 	at91sam9m10g45ek_lcd_hw_init();
 #endif
+
+#ifdef CONFIG_MACB
+        at91sam9m10g45ek_macb_hw_init();
+#endif
+
+	writel(0, &pmc->pck[1]);
+	writel(0x100,    &pmc->pck[1]);
+	writel(AT91_PMC_PRES_16 | AT91_PMC_CSS_PLLA, &pmc->pck[1]);
+	writel(AT91_PMC_PCK1, &pmc->scer);
+	at91_set_b_periph(AT91_PIO_PORTE, 31, 1);
 	return 0;
 }
 
@@ -295,5 +353,7 @@ int dram_init(void)
 #ifdef CONFIG_RESET_PHY_R
 void reset_phy(void)
 {
+	eth_init();
 }
 #endif
+

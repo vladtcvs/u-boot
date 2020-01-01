@@ -41,16 +41,20 @@
 				u-boot,dm-pre-reloc;
 			};
 
+			usart0: serial@fff8c000 {
+				pinctrl-0 =
+					<&pinctrl_usart0>;
+				status = "okay";
+			};
+
 			usart1: serial@fff90000 {
 				pinctrl-0 =
-					<&pinctrl_usart1
-					 &pinctrl_usart1_rts
-					 &pinctrl_usart1_cts>;
+					<&pinctrl_usart1>;
 				status = "okay";
 			};
 
 			macb0: ethernet@fffbc000 {
-				phy-mode = "rmii";
+				phy-mode = "mii";
 				status = "okay";
 			};
 
@@ -94,7 +98,8 @@
 				slot@0 {
 					reg = <0>;
 					bus-width = <4>;
-					cd-gpios = <&pioD 10 GPIO_ACTIVE_HIGH>;
+/*					non-removable;*/
+					cd-gpios = <&pioC 31 GPIO_ACTIVE_HIGH>;
 				};
 			};
 
@@ -254,19 +259,15 @@
 			status = "okay";
 
 			boot@0 {
-				label = "bootstrap/uboot/kernel";
-				reg = <0x0 0x400000>;
+				label = "boot";
+				reg = <0x0 0x1000000>;
 			};
 
 			rootfs@400000 {
 				label = "rootfs";
-				reg = <0x400000 0x3C00000>;
+				reg = <0x1000000 0xF000000>;
 			};
 
-			data@4000000 {
-				label = "data";
-				reg = <0x4000000 0xC000000>;
-			};
 		};
 
 		usb0: ohci@00700000 {

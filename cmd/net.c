@@ -297,6 +297,65 @@ U_BOOT_CMD(
 );
 #endif
 
+#if defined(CONFIG_CMD_ETHSEND)
+
+static int hex2int(char c)
+{
+	if (c >= '0' && c <= '9')
+		return c - '0';
+	if (c >= 'a' && c <= 'f')
+		return c - 'a' + 0xA;
+	if (c >= 'A' && c <= 'F')
+		return c - 'A' + 0xA;
+	return -1;
+}
+
+static int do_ethsend(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+{
+	uchar buffer[1600] = {0};
+	int i;
+	if (argc < 5)
+		return CMD_RET_USAGE;
+	
+	uchar dst[6], src[6];
+	uchar ethertype[2];
+
+	printf("%s, %s, %s\n", argv[1], argv[2], argv[3]);
+	string_to_enetaddr(argv[1], dst);
+	string_to_enetaddr(argv[2], src);
+	ethertype[0] = hex2int(argv[3][0])*16 + hex2int(argv[3][1]);
+	ethertype[1] = hex2int(argv[3][2])*16 + hex2int(argv[3][3]);
+
+	printf("Sending ethernet frame:\n");
+	printf("dst = %02X:%02X:%02X:%02X:%02X:%02X\n", dst[0], dst[1], dst[2], dst[3], dst[4], dst[5]);
+	printf("src = %02X:%02X:%02X:%02X:%02X:%02X\n", src[0], src[1], src[2], src[3], src[4], src[5]);
+	printf("ethertype = %02X%02X\n", ethertype[0], ethertype[1]);
+
+	memcpy(buffer, dst, 6);
+	memcpy(buffer + 6, src, 6);
+	memcpy(buffer + 6 + 6, ethertype, 2);
+
+	size_t dlen = strlen(argv[4]);
+	memcpy(buffer + 6 + 6 + 2, argv[4], dlen);
+	
+	size_t len = 6 + 6 + 2 + dlen;
+
+	if (len < 64)
+		len = 64;
+	len += (4 - len % 4) % 4;
+	
+	eth_send(buffer, len);
+	return CMD_RET_SUCCESS;
+}
+
+U_BOOT_CMD(
+	ethsend,	5,	1,	do_ethsend,
+	"send raw ethernet frame",
+	"ethsend dst (XXXXXXXXXX) src (XXXXXXXXXX) ethertype (XXXX) data"
+);
+
+#endif
+
 #if defined(CONFIG_CMD_CDP)
 
 static void cdp_update_env(void)
